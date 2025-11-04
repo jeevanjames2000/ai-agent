@@ -1,30 +1,30 @@
 import axios from "axios";
-
 export async function askOllama(question, context = "") {
   try {
-    const response = await axios.post("http://localhost:11434/api/generate", {
-      model: "gemma:2b", // llama3 or mistral also works
-      prompt: `
+    const response = await axios.post(
+      "http://localhost:11434/api/generate",
+      {
+        model: "gemma:2b-instruct-q4_0",
+        prompt: `
 You are an AI Property Assistant for MeetOwner.
-Below is the property data from the database.
-
+Context from DB:
 ${context}
-
-User's Question:
-${question}
-
-Instructions:
-- If properties exist in context, show them in a clear bullet-point format.
-- Include property name, price, location, and BHK.
-- If no matching properties exist, suggest nearby locations or alternative budget/BHK.
-- Keep answers short and helpful.
-      `,
-      stream: false,
-    });
-
+Question: ${question}
+Respond:
+- List 3-5 matching properties in bullet points (name, BHK, price, location).
+- If no exact matches, suggest alternatives (e.g., "Try 2BHK in nearby areas").
+- Keep under 200 words, friendly and concise.
+        `,
+        stream: false,
+        options: {
+          timeout: 5000,
+        },
+      },
+      { timeout: 10000 }
+    );
     return response.data.response;
   } catch (error) {
     console.error("Ollama API Error:", error);
-    throw new Error("AI service failed");
+    return "Sorry, I'm having trouble processing that right now. Try again soon!";
   }
 }
