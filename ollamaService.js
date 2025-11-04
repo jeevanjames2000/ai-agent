@@ -4,7 +4,7 @@ export async function askOllama(question, context = "") {
     const response = await axios.post(
       "http://localhost:11434/api/generate",
       {
-        model: "gemma:2b-instruct-q4_0",
+        model: "gemma:2b",
         prompt: `
 You are an AI Property Assistant for MeetOwner.
 Context from DB:
