@@ -3,19 +3,22 @@ import axios from "axios";
 export async function askOllama(question, context = "") {
   try {
     const response = await axios.post("http://localhost:11434/api/generate", {
-      model: "gemma:2b",  // or "llama3", "mistral"
+      model: "gemma:2b", // llama3 or mistral also works
       prompt: `
-You are a real estate assistant for MeetOwner.
-Use the following context to answer accurately.
+You are an AI Property Assistant for MeetOwner.
+Below is the property data from the database.
 
-Context:
 ${context}
 
-User Question:
+User's Question:
 ${question}
 
-Answer only with relevant property info.
-`,
+Instructions:
+- If properties exist in context, show them in a clear bullet-point format.
+- Include property name, price, location, and BHK.
+- If no matching properties exist, suggest nearby locations or alternative budget/BHK.
+- Keep answers short and helpful.
+      `,
       stream: false,
     });
 
