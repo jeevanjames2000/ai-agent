@@ -1,20 +1,27 @@
+// server.js (optimized version)
 import express from "express";
 import dotenv from "dotenv";
 import db from "./db.js";
 import { askOllama } from "./ollamaService.js";
 import NodeCache from "node-cache";
+
 dotenv.config();
 const app = express();
 app.use(express.json());
+
+// Cache for 5min
 const cache = new NodeCache({ stdTTL: 300 });
+
 function extractFilters(question) {
   let filters = {
     bhk: null,
     location: null,
     maxPrice: null,
   };
+
   const bhkMatch = question.match(/(\d+)\s?bhk/i);
   if (bhkMatch) filters.bhk = bhkMatch[1];
+
   const priceMatch = question.match(/(\d+)\s?(crore|lakhs|lakh)/i);
   if (priceMatch) {
     let value = parseInt(priceMatch[1]);
@@ -22,6 +29,7 @@ function extractFilters(question) {
     if (priceMatch[2].toLowerCase().includes("lakh")) value *= 100000;
     filters.maxPrice = value;
   }
+
   const possibleLocations = [
     "Hyderabad",
     "Gachibowli",
@@ -34,37 +42,48 @@ function extractFilters(question) {
       filters.location = loc;
     }
   });
+
   return filters;
 }
+
 app.post("/api/ask", async (req, res) => {
   const { question } = req.body;
+
   try {
     const cacheKey = `ask:${question.toLowerCase()}`;
     const cached = cache.get(cacheKey);
     if (cached) {
       return res.json(cached);
     }
+
     const { bhk, location, maxPrice } = extractFilters(question);
+
     let query = `
-      SELECT property_name, bedrooms, property_cost, google_address 
+      SELECT property_name, bedrooms, property_cost, google_address, description 
       FROM properties 
       WHERE property_status = 1
     `;
     let params = [];
+
     if (bhk) {
       query += " AND bedrooms = ?";
       params.push(bhk);
     }
+
     if (location) {
       query += " AND google_address LIKE ?";
       params.push(`%${location}%`);
     }
+
     if (maxPrice) {
       query += " AND property_cost <= ?";
       params.push(maxPrice);
     }
+
     query += " ORDER BY id DESC LIMIT 10";
+
     const [properties] = await db.query(query, params);
+
     let context = properties.length
       ? properties
           .map(
@@ -73,6 +92,8 @@ app.post("/api/ask", async (req, res) => {
           )
           .join("\n")
       : "No direct matches found. Showing top recent listings.";
+
+    // Fallback to top 3 if no matches
     if (properties.length === 0) {
       const [fallback] = await db.query(
         `SELECT property_name, bedrooms, property_cost, google_address 
@@ -87,7 +108,9 @@ app.post("/api/ask", async (req, res) => {
           )
           .join("\n");
     }
+
     const aiResponse = await askOllama(question, context);
+
     const result = { success: true, answer: aiResponse, usedData: properties };
     cache.set(cacheKey, result);
     res.json(result);
@@ -96,6 +119,7 @@ app.post("/api/ask", async (req, res) => {
     res.status(500).json({ success: false, error: "Something went wrong!" });
   }
 });
+
 app.listen(process.env.PORT, "0.0.0.0", () => {
   console.log(`✅ Server running on http://0.0.0.0:${process.env.PORT}`);
 });
