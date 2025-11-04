@@ -59,7 +59,7 @@ app.post("/api/ask", async (req, res) => {
     const { bhk, location, maxPrice } = extractFilters(question);
 
     let query = `
-      SELECT property_name, bedrooms, property_cost, google_address, description 
+      SELECT property_name, bedrooms, property_cost, google_address 
       FROM properties 
       WHERE property_status = 1
     `;
